@@ -2,7 +2,6 @@
 const fs = require('fs');
 const readline = require('readline');
 const spawn = require('child_process').spawn;
-const xml2js = require('xml-js');
 
 const MAX_PHRASE_LEN = 60;
 const MAX_SENTENCE_LEN = 60;
@@ -30,30 +29,16 @@ rl.on('pause', () => {
         })
         .filter((e) => { return e !== "。"; });
 
-    let que = [];
+
+    let que2 = [];
     arr.forEach((v, i, a) => {
-        que.push(dump_kakari(v, i))
+        que2.push(check_kakari(v, i));
     });
-
-    Promise
-        .all(que)
+    Promise.all(que2)
         .then((data) => {
-            // console.log(data);
-            let que2 = [];
             data.forEach((v, i, a) => {
-                // console.log(v.input.replace(/、/g, "、\n") + "\n");
-                // console.log(v.output + "\n");
-                // check_length(v.input, v.index);
-
-                // console.log(v.input, v.index);
-                que2.push(check_kakari(v.input, v.line));
-            });
-            return Promise.all(que2);
-        })
-        .then((data) => {
-            console.log(data.length);
-            data.forEach((v, i, a) => {
-                console.log(v.line, v.output);
+                // console.log(v.line, v.output);
+                check_kakari_dep(v.output, v.line);
                 // console.log(v);
             });
         })
@@ -159,11 +144,53 @@ let check_kakari = (str, line) => {
     });
 };
 
+let check_kakari_dep = (obj, line) => {
+    let list = {};
+
+    obj
+        .concat()
+        .sort((a, b) => {
+            if (a.to < b.to) return 1;
+            if (a.to > b.to) return -1;
+            return 0;
+        })
+        .forEach((v, i, a) => {
+            if (!list[v.to]) list[v.to] = [];
+            list[v.to].push(v);
+        });
+
+    let keylist = [];
+    for (let key in list) {
+        if (list.hasOwnProperty(key)) {
+            keylist.push(key);
+        }
+    }
+    keylist
+        .reverse()
+        .forEach((v, i, a) => {
+            let element = list[v];
+            if (element.length < 1) return;
+
+            let join = "";
+            for (var key in obj) {
+                if (obj.hasOwnProperty(key) && obj[key].to === element[0].to) {
+                    join += obj[key].phrase + "|";
+
+                }
+            }
+            join = join.substr(0, join.length - 1);
+
+            if (element[0].to < 0) return;
+            warning(`check meaning of \`${join} -> ${obj[element[0].to].phrase}'`, line)
+        });
+
+};
+
 
 let error = (str, line) => {
-    console.log(`${line}: **** ${str}`)
+    console.log(`${line + 1}: **** ${str}`)
 };
 
 let warning = (str, line) => {
-    console.log(`${line}: ${str}`)
+    console.log(`${line + 1}: ${str}`)
 };

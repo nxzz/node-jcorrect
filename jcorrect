@@ -124,6 +124,12 @@ sub check_kakari_dep {
                 push(@list, $hashp->{$from}->{phrase});
             }
         }
+        # print "\n=======\n";
+        # # print "$to\n";
+        # # print "*****\n";
+        # print join("\n", @list);
+        # print "\n=======\n";
+        
         next unless (@list >= 1);
         warning(
             sprintf "check meaning of `%s -> %s'",
@@ -218,10 +224,10 @@ sub check_kakari {
         }
     }
     close(IN);
-    check_kakari_subj(\%hash);
-    check_kakari_verbose(\%hash);
+    # check_kakari_subj(\%hash);
+    # check_kakari_verbose(\%hash);
     check_kakari_dep(\%hash);
-    check_kakari_parallel(\%hash);
+    # check_kakari_parallel(\%hash);
 }
 
 sub dump_kakari {
@@ -278,7 +284,7 @@ for (split(/$DELIM_LEFT/, $buf)) {
     $str =~ s/\(.*?\)//g;
 
     # print "$str\n";        
-    dump_kakari($str);
+    # dump_kakari($str);
     # print "\n$str\n";        
     
     # check_length($str);
