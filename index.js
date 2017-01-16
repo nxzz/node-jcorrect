@@ -3,8 +3,8 @@ const fs = require('fs');
 const readline = require('readline');
 const spawn = require('child_process').spawn;
 
-const MAX_PHRASE_LEN = 60;
-const MAX_SENTENCE_LEN = 60;
+const MAX_PHRASE_LEN = 60 / 2;
+const MAX_SENTENCE_LEN = 180 / 2;
 
 
 const rs = fs.ReadStream('./test.txt');
@@ -37,7 +37,10 @@ rl.on('pause', () => {
     Promise.all(que2)
         .then((data) => {
             data.forEach((v, i, a) => {
-                // console.log(v.line, v.output);
+                console.log("\n\n");
+                console.log(v.input);
+                console.log();
+                check_length(v.input, v.line);
                 check_kakari_dep(v.output, v.line);
                 // console.log(v);
             });
@@ -89,12 +92,12 @@ let check_length = (str, line) => {
         });
 };
 
-let check_kakari = (str, line) => {
+let check_kakari = (instr, line) => {
     return new Promise((resolve, reject) => {
         let child = spawn('cabocha', ['-f1']);
         child.stdin.setEncoding('utf-8');
 
-        child.stdin.write(str);
+        child.stdin.write(instr);
         child.stdin.write("\n");
         child.stdin.end();
 
@@ -134,7 +137,7 @@ let check_kakari = (str, line) => {
             resolve({
                 output: output,
                 line: line,
-                input: str
+                input: instr
             });
         });
 
