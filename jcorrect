@@ -54,8 +54,10 @@ sub check_length {
     # check phrase length
     for (split('、', $str)) {
         my $len = length($_);
-        error "too long phrase (should be <= $MAX_PHRASE_LEN chars)"
-          if ($len > $MAX_PHRASE_LEN);
+        if ($len > $MAX_PHRASE_LEN){
+            error "too long phrase (should be <= $MAX_PHRASE_LEN chars)";
+            # print "$_\n";
+        }
     }
 }
 
@@ -278,6 +280,6 @@ for (split(/$DELIM_LEFT/, $buf)) {
     dump_kakari($str);
     # print "\n$str\n";        
     
-    # check_length($str);
+    check_length($str);
     # check_kakari($str);
 }

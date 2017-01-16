@@ -3,6 +3,10 @@ const fs = require('fs');
 const readline = require('readline');
 const spawn = require('child_process').spawn;
 
+const MAX_PHRASE_LEN = 60;
+const MAX_SENTENCE_LEN = 60;
+
+
 const rs = fs.ReadStream('./test.txt');
 const rl = readline.createInterface({ 'input': rs, 'output': {} });
 
@@ -33,7 +37,14 @@ rl.on('pause', () => {
     Promise
         .all(que)
         .then((data) => {
-            console.log(data);
+            // console.log(data);
+            data.forEach((v, i, a) => {
+                console.log(v.input.replace(/、/g, "、\n") + "\n");
+                console.log(v.output + "\n");
+                check_length(v.input, v.index);
+            });
+        }).catch((err) => {
+            console.log(err);
         });
 
 });
@@ -52,9 +63,9 @@ let dump_kakari = (str, index) => {
             out += data.toString();
         });
 
-        child.on('exit', function () {
+        child.on('exit', () => {
             resolve({
-                out: out,
+                output: out.replace("\nEOS\n", ""),
                 index: index,
                 input: str
             });
@@ -64,4 +75,26 @@ let dump_kakari = (str, index) => {
             reject(err);
         });
     });
+};
+
+let check_length = (str, line) => {
+    if (str.length > MAX_SENTENCE_LEN) {
+        error(`too long sentence (should be <= ${MAX_SENTENCE_LEN} chars)`, line);
+    }
+    str
+        .split("、")
+        .forEach((v, i, a) => {
+            if (v.length > MAX_PHRASE_LEN) {
+                error(`too long phrase (should be <= ${MAX_PHRASE_LEN} chars)`, line);
+            }
+        });
+};
+
+
+let error = (str, line) => {
+    console.log(`${line}: **** ${str}`)
+};
+
+let warning = (str, line) => {
+    console.log(`${line}: ${str}`)
 };
