@@ -1,0 +1,283 @@
+#!/usr/bin/env perl
+#
+# A simple Japanese grammer checker using cabocha.
+# Copyright (c) 2005-2012, Hiroyuki Ohsaki.
+# All rights reserved.
+#
+# $Id: jcorrect,v 1.16 2013/06/07 11:39:56 oosaki Exp ohsaki $
+#
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+use Getopt::Std;
+use IPC::Open2;
+use strict;
+
+my $MAX_PHRASE_LEN   = 60;
+my $MAX_SENTENCE_LEN = 180;
+my $DELIM_LEFT       = '<<<<';
+my $DELIM_RIGHT      = '>>>>';
+
+our $line;
+
+sub error {
+    my $str = shift;
+
+    print "$line: **** $str\n";
+}
+
+sub warning {
+    my $str = shift;
+
+    print "$line: $str\n";
+}
+
+sub check_length {
+    my $str = shift;
+
+    # check sentence length
+    my $len = length($str);
+    error "too long sentence (should be <= $MAX_SENTENCE_LEN chars)"
+      if ($len > $MAX_SENTENCE_LEN);
+    # check phrase length
+    for (split('、', $str)) {
+        my $len = length($_);
+        error "too long phrase (should be <= $MAX_PHRASE_LEN chars)"
+          if ($len > $MAX_PHRASE_LEN);
+    }
+}
+
+sub find_kaku {
+    my ($regexp, $listp) = @_;
+
+    # find the first occurence of REGEXP in LISTP
+    for (0 .. $#{$listp}) {
+        return $_ if (${$listp}[$_] =~ /$regexp/);
+    }
+    return undef;
+}
+
+sub check_kakari_subj {
+    my $hashp = shift;
+
+    my @id = sort {$a <=> $b} keys %{$hashp};
+    my $last_id = $id[-1];
+    my @list;
+    for my $from (@id) {
+        next if ($hashp->{$from}->{type} eq 'A');
+        next if ($hashp->{$from}->{type} eq 'P');
+        push(@list, $hashp->{$from}->{phrase});
+    }
+    error "misssing subject for `$hashp->{$last_id}->{phrase}'"
+      unless (defined find_kaku('(は|が)$', \@list));
+}
+
+my %RULES = (
+    'している' => 'する',
+    'について' => 'を',
+    'など'     => '(削除する)',
+    'を行う'   => 'する',
+    'なる'     => '(具体的に)',
+    'に関して' => '(具体的に)',
+    'とき'     => '時',
+);
+# される/された → 能動態で
+# ことで/用いる/利用する → あいまい
+
+sub check_kakari_verbose {
+    my $hashp = shift;
+
+    # check inappropriate word
+    my @id = sort {$a <=> $b} keys %{$hashp};
+    for (@id) {
+        for my $clause (keys %RULES) {
+            error "avoid using `$clause' (instead use `$RULES{$clause}')"
+              if ($hashp->{$_}->{phrase} =~ /$clause/);
+        }
+    }
+}
+
+sub check_kakari_dep {
+    my $hashp = shift;
+
+    my @id = sort {$a <=> $b} keys %{$hashp};
+    for my $to (reverse @id) {
+        my @list = ();
+        for my $from (@id) {
+            if (    $hashp->{$from}->{to} == $to
+                and $hashp->{$from}->{type} =~ /^[DO]$/)
+            {
+                push(@list, $hashp->{$from}->{phrase});
+            }
+        }
+        next unless (@list >= 1);
+        warning(
+            sprintf "check meaning of `%s -> %s'",
+            join('|', @list),
+            $hashp->{$to}->{phrase}
+        );
+        # check word order
+        my @pos = (
+            find_kaku('(は|が)$', \@list),
+            find_kaku('を$',      \@list),
+            find_kaku('から$',    \@list),
+            find_kaku('に$',      \@list)
+        );
+        for my $i (0 .. $#pos) {
+            for my $j ($i + 1 .. $#pos) {
+                next
+                  unless (defined $pos[$i]
+                    and defined $pos[$j]
+                    and $pos[$i] > $pos[$j]);
+                error
+                  "reversed word order `$list[$pos[$j]] -> $list[$pos[$i]]'";
+            }
+        }
+    }
+}
+
+sub check_kakari_parallel {
+    my $hashp = shift;
+
+    my @id = sort {$a <=> $b} keys %{$hashp};
+    my %visited;
+    for my $from (@id) {
+        my @list = ();
+        $_ = $from;
+        while ($hashp->{$_}->{type} eq 'P' and !$visited{$_}) {
+            push(@list, $hashp->{$_}->{phrase});
+            $visited{$_} = 1;
+            $_ = $hashp->{$_}->{to};
+        }
+        if (@list) {
+            push(@list, $hashp->{$_}->{phrase});
+            $visited{$_} = 1;
+        }
+        next unless (@list >= 1);
+        warning(sprintf "check meaning of `%s'", join(' = ', @list));
+        # check and/or style
+        my $is_ng = 0;
+        for (0 .. $#list) {
+            if ($_ != $#list - 1) {
+                $is_ng = 1 if ($list[$_] =~ /(および|または|もしくは)$/);
+            } else {
+                $is_ng = 1 if ($list[$_] !~ /(および|または|もしくは)$/);
+            }
+        }
+        error(
+            sprintf "incorrect enumeration style (%s) (%s)",
+            join('、', @list),
+            "e.g., `A、B、CおよびD'"
+        ) if $is_ng;
+    }
+}
+
+sub check_kakari {
+    my $str = shift;
+
+    # open and write sentence to cabocha
+    my $pid = open2(*IN, *OUT, 'cabocha -f1');
+    print OUT $str;
+    close(OUT);
+    # load cabocha's output into hash
+    my $id;
+    my %hash;
+    while (<IN>) {
+        chomp;
+        next if /^EOS/;
+        if (/^\*\s+\d/) {
+            my ($dummy, $from_id, $to_id, $pos, $val) = split(/\s+/, $_);
+            $id = $from_id;
+            $to_id =~ s/([APDO])//;
+            $hash{$id}->{to}     = $to_id;
+            $hash{$id}->{type}   = $1;
+            $hash{$id}->{phrase} = '';
+        } else {
+            next if /未知語/;
+            my ($word, $yomi, $orig, $type, $opts) = split(/\s+/, $_);
+            next if ($type eq '記号-句点');
+            next if ($type eq '記号-読点');
+            $hash{$id}->{phrase} .= $word;
+            warning "check referred word/phrase by `$word'"
+              if ($type eq '連体詞');
+        }
+    }
+    close(IN);
+    check_kakari_subj(\%hash);
+    check_kakari_verbose(\%hash);
+    check_kakari_dep(\%hash);
+    check_kakari_parallel(\%hash);
+}
+
+sub dump_kakari {
+    my $str = shift;
+
+    my $pid = open2(*IN, *OUT, 'cabocha');
+    print OUT $str;
+    close(OUT);
+
+    $str =~ s/、/、\n/g;
+    print "\n$str\n\n";
+    while (<IN>) {
+        chomp;
+        next if /^EOS/;
+        print "$_\n";
+    }
+    close(IN);
+    print "\n";
+}
+
+my $buf = '';
+while (<>) {
+    chomp;
+
+    # remove item head
+    s/^\s*-\s*//g;
+    # remove citations
+    s/\[\d{5}\]//g;
+    # remove spaces
+    s/^\s+//;
+    s/\s+$//;
+
+    # ファイルからか標準入力からか
+    my $delim =
+      ($ARGV eq '-')
+      ? "$DELIM_LEFT$.$DELIM_RIGHT"
+      : "$DELIM_LEFT$ARGV:$.$DELIM_RIGHT";
+    if (/^\s*$/) {
+        $buf .= $delim;
+    } else {
+        $buf = $delim unless $buf;
+        
+        # 。でくぎってる
+        s/。/"。$delim"/eg;
+        $buf .= $_;
+    }
+}
+
+for (split(/$DELIM_LEFT/, $buf)) {
+    my $str;
+    ($line, $str) = split($DELIM_RIGHT, $_, 2);
+    next unless $str;
+    # remove annotation
+    $str =~ s/\(.*?\)//g;
+
+    # print "$str\n";        
+    dump_kakari($str);
+    # print "\n$str\n";        
+    
+    # check_length($str);
+    # check_kakari($str);
+}

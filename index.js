@@ -3,7 +3,7 @@ const fs = require('fs');
 const readline = require('readline');
 const spawn = require('child_process').spawn;
 
-const rs = fs.ReadStream('../test.txt');
+const rs = fs.ReadStream('./test.txt');
 const rl = readline.createInterface({ 'input': rs, 'output': {} });
 
 let buf = "";
