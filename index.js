@@ -2,6 +2,7 @@
 const fs = require('fs');
 const readline = require('readline');
 const spawn = require('child_process').spawn;
+const xml2js = require('xml-js');
 
 const MAX_PHRASE_LEN = 60;
 const MAX_SENTENCE_LEN = 60;
@@ -38,18 +39,31 @@ rl.on('pause', () => {
         .all(que)
         .then((data) => {
             // console.log(data);
+            let que2 = [];
             data.forEach((v, i, a) => {
-                console.log(v.input.replace(/、/g, "、\n") + "\n");
-                console.log(v.output + "\n");
-                check_length(v.input, v.index);
+                // console.log(v.input.replace(/、/g, "、\n") + "\n");
+                // console.log(v.output + "\n");
+                // check_length(v.input, v.index);
+
+                // console.log(v.input, v.index);
+                que2.push(check_kakari(v.input, v.line));
             });
-        }).catch((err) => {
+            return Promise.all(que2);
+        })
+        .then((data) => {
+            console.log(data.length);
+            data.forEach((v, i, a) => {
+                console.log(v.line, v.output);
+                // console.log(v);
+            });
+        })
+        .catch((err) => {
             console.log(err);
         });
 
 });
 
-let dump_kakari = (str, index) => {
+let dump_kakari = (str, line) => {
     return new Promise((resolve, reject) => {
         let child = spawn('cabocha');
         child.stdin.setEncoding('utf-8');
@@ -66,7 +80,7 @@ let dump_kakari = (str, index) => {
         child.on('exit', () => {
             resolve({
                 output: out.replace("\nEOS\n", ""),
-                index: index,
+                line: line,
                 input: str
             });
         });
@@ -88,6 +102,61 @@ let check_length = (str, line) => {
                 error(`too long phrase (should be <= ${MAX_PHRASE_LEN} chars)`, line);
             }
         });
+};
+
+let check_kakari = (str, line) => {
+    return new Promise((resolve, reject) => {
+        let child = spawn('cabocha', ['-f1']);
+        child.stdin.setEncoding('utf-8');
+
+        child.stdin.write(str);
+        child.stdin.write("\n");
+        child.stdin.end();
+
+        let out = "";
+        child.stdout.on('data', (data) => {
+            out += data;
+        });
+
+        child.on('exit', () => {
+            let str = out.toString().replace("EOS", "").split(/\n/);
+
+            let output = [];
+            let temp = {};
+            for (let i = 0; i < str.length; i++) {
+                if (str[i].substr(0, 1) === '*') {
+
+                    output.push(temp);
+                    temp = {};
+                    let dumy, from_id, to_id;
+                    [dumy, from_id, to_id] = str[i].split(/\s+/);
+                    temp.to = to_id.substr(0, to_id.length - 1);
+                    temp.type = to_id.substr(to_id.length - 1);
+                    temp.phrase = '';
+                } else {
+                    let word, yomi, orig, type;
+                    [word, yomi, orig, type] = str[i].split(/\s+/);
+
+                    if (type === '記号-句点') continue;
+                    if (type === '記号-読点') continue;
+                    temp.phrase += word;
+                    if (type === '連体詞') warning(`check referred word/phrase by ${word}'`, line);
+                }
+            }
+            output.push(temp);
+            output.shift();
+
+            resolve({
+                output: output,
+                line: line,
+                input: str
+            });
+        });
+
+        child.on('error', (err) => {
+            reject(err);
+        });
+    });
 };
 
 

@@ -206,6 +206,7 @@ sub check_kakari {
             $hash{$id}->{to}     = $to_id;
             $hash{$id}->{type}   = $1;
             $hash{$id}->{phrase} = '';
+            # print "$1 $to_id\n";
         } else {
             next if /未知語/;
             my ($word, $yomi, $orig, $type, $opts) = split(/\s+/, $_);
@@ -280,6 +281,6 @@ for (split(/$DELIM_LEFT/, $buf)) {
     dump_kakari($str);
     # print "\n$str\n";        
     
-    check_length($str);
-    # check_kakari($str);
+    # check_length($str);
+    check_kakari($str);
 }
