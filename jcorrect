@@ -84,7 +84,7 @@ sub check_kakari_subj {
         next if ($hashp->{$from}->{type} eq 'P');
         push(@list, $hashp->{$from}->{phrase});
     }
-    warn Data::Dumper::Dumper @list;
+    # warn Data::Dumper::Dumper @list;
     error "misssing subject for `$hashp->{$last_id}->{phrase}'"
       unless (defined find_kaku('(は|が)$', \@list));
 }
@@ -242,7 +242,7 @@ sub check_kakari {
     }
     close(IN);
     check_kakari_subj(\%hash);
-    # check_kakari_verbose(\%hash);
+    check_kakari_verbose(\%hash);
     check_kakari_dep(\%hash);
     # check_kakari_parallel(\%hash);
 }

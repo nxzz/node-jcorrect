@@ -42,6 +42,7 @@ rl.on('pause', () => {
                 // console.log();
                 check_length(v.input, v.line);
                 check_kakari_subj(v.output, v.line);
+                check_kakari_verbose(v.output, v.line);
                 check_kakari_dep(v.output, v.line);
                 // console.log(v);
             });
@@ -207,6 +208,28 @@ let check_kakari_subj = (obj, line) => {
     // console.log(list);
     if (find_kaku(/(は|が)$/, list) === -1) {
         error(`misssing subject for ${obj[last_id]}`, line);
+    }
+};
+
+let check_kakari_verbose = (obj, line) => {
+    let id = Object.keys(obj);
+
+    let RULES = {
+        'している': 'する',
+        'について': 'を',
+        'など': '(削除する)',
+        'を行う': 'する',
+        'なる': '(具体的に)',
+        'に関して': '(具体的に)',
+        'とき': '時'
+    };
+    // console.log(id);
+    for (let from = 0; from < id.length; from++) {
+        for (let key in RULES) {
+            if (obj[from].phrase.match(new RegExp(key))) {
+                error(`avoid using \`${key}\' (instead use \`${RULES[key]}\')`, line);
+            }
+        }
     }
 };
 
