@@ -19,7 +19,8 @@ jc.run("技術文書は簡潔であることが重要です。")
                 warning(v2, v.line);
             });
         });
-    }).catch((err) => {
+    })
+    .catch((err) => {
         console.log(err);
     });
 let error = (str, line) => {
