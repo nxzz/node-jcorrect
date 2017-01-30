@@ -1,7 +1,7 @@
 {
-  "name": "js",
+  "name": "node-jcorrect",
   "version": "1.0.0",
-  "description": "",
+  "description": "jcorrect for Node.JS",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

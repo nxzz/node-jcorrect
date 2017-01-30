@@ -2,7 +2,7 @@
 const fs = require('fs');
 const readline = require('readline');
 
-const jc = require('./node-jcorrect');
+const jc = require('./index');
 
 const rs = fs.ReadStream('./test.txt');
 const rl = readline.createInterface({ 'input': rs, 'output': {} });
