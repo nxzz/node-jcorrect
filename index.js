@@ -39,7 +39,7 @@ rl.on('pause', () => {
             data.forEach((v, i, a) => {
                 console.log("\n\n");
                 console.log(v.input);
-                console.log();
+                // console.log();
                 check_length(v.input, v.line);
                 check_kakari_dep(v.output, v.line);
                 // console.log(v);
@@ -148,45 +148,54 @@ let check_kakari = (instr, line) => {
 };
 
 let check_kakari_dep = (obj, line) => {
-    let list = {};
-
-    obj
-        .concat()
-        .sort((a, b) => {
-            if (a.to < b.to) return 1;
-            if (a.to > b.to) return -1;
-            return 0;
-        })
-        .forEach((v, i, a) => {
-            if (!list[v.to]) list[v.to] = [];
-            list[v.to].push(v);
-        });
-
-    let keylist = [];
-    for (let key in list) {
-        if (list.hasOwnProperty(key)) {
-            keylist.push(key);
+    // console.log(obj);
+    let id = Object.keys(obj);
+    // console.log(id);
+    for (let to = id.length - 1; to > 0; to--) {
+        let list = [];
+        for (let from = 0; from < id.length; from++) {
+            if (obj[id[from]].to === id[to] && obj[id[from]].type.match(/^[DO]$/)) {
+                list.push(obj[id[from]].phrase);
+            }
         }
-    }
-    keylist
-        .reverse()
-        .forEach((v, i, a) => {
-            let element = list[v];
-            if (element.length < 1) return;
 
+        if (list.length < 1) continue;
+        {
+            // console.log(list);
             let join = "";
-            for (var key in obj) {
-                if (obj.hasOwnProperty(key) && obj[key].to === element[0].to) {
-                    join += obj[key].phrase + "|";
-
-                }
+            for (var key in list) {
+                join += list[key] + "|";
             }
             join = join.substr(0, join.length - 1);
+            warning(`check meaning of \`${join} -> ${obj[to].phrase}'`, line);
+        }
 
-            if (element[0].to < 0) return;
-            warning(`check meaning of \`${join} -> ${obj[element[0].to].phrase}'`, line)
-        });
+        {
+            let find_kaku = (regexp) => {
+                for (let i = 0; i < list.length; i++) {
+                    if (list[i].match(regexp)) return i;
+                }
+                return -1;
+            };
+            let pos = [
+                find_kaku(/(は|が)$/),
+                find_kaku(/を$/),
+                find_kaku(/から$/),
+                find_kaku(/に$/)
+            ];
+            // console.log(pos);
+            if (pos.length >= 2) {
+                for (let i = 0; i < pos.length; i++) {
+                    for (let p = i + 1; p < pos.length; p++) {
+                        if (pos[i] > pos[p] && pos[i] >= 0 && pos[p] >= 0) {
+                            error(`reversed word order ${list[pos[p]]} -> ${list[pos[i]]}`, line);
+                        }
+                    }
+                }
+            }
+        }
 
+    }
 };
 
 

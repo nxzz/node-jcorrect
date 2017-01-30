@@ -24,9 +24,10 @@
 use Getopt::Std;
 use IPC::Open2;
 use strict;
+use Data::Dumper;
 
-my $MAX_PHRASE_LEN   = 60;
-my $MAX_SENTENCE_LEN = 180;
+my $MAX_PHRASE_LEN   = 60 /2 * 3;
+my $MAX_SENTENCE_LEN = 180 /2 * 3;
 my $DELIM_LEFT       = '<<<<';
 my $DELIM_RIGHT      = '>>>>';
 
@@ -49,13 +50,13 @@ sub check_length {
 
     # check sentence length
     my $len = length($str);
-    error "too long sentence (should be <= $MAX_SENTENCE_LEN chars)"
+    error "too long sentence (should be <= $MAX_SENTENCE_LEN chars) $len"
       if ($len > $MAX_SENTENCE_LEN);
     # check phrase length
     for (split('、', $str)) {
         my $len = length($_);
         if ($len > $MAX_PHRASE_LEN){
-            error "too long phrase (should be <= $MAX_PHRASE_LEN chars)";
+            error "too long phrase (should be <= $MAX_PHRASE_LEN chars) $len";
             # print "$_\n";
         }
     }
@@ -66,6 +67,7 @@ sub find_kaku {
 
     # find the first occurence of REGEXP in LISTP
     for (0 .. $#{$listp}) {
+        # print "$_ : ${$listp}[$_]\n" if (${$listp}[$_] =~ /$regexp/);
         return $_ if (${$listp}[$_] =~ /$regexp/);
     }
     return undef;
@@ -115,6 +117,10 @@ sub check_kakari_dep {
     my $hashp = shift;
 
     my @id = sort {$a <=> $b} keys %{$hashp};
+        # warn Data::Dumper::Dumper @id;
+    
+        # warn Data::Dumper::Dumper reverse @id;
+    
     for my $to (reverse @id) {
         my @list = ();
         for my $from (@id) {
@@ -124,6 +130,7 @@ sub check_kakari_dep {
                 push(@list, $hashp->{$from}->{phrase});
             }
         }
+        
         # print "\n=======\n";
         # # print "$to\n";
         # # print "*****\n";
@@ -143,8 +150,17 @@ sub check_kakari_dep {
             find_kaku('から$',    \@list),
             find_kaku('に$',      \@list)
         );
+        # print "*** @list\n";
+        # print "*** @pos\n";
+        # local $Data::Dumper::Deparse = 1;
+        # warn Data::Dumper::Dumper @list;
+        # warn Data::Dumper::Dumper @pos;
+        
         for my $i (0 .. $#pos) {
             for my $j ($i + 1 .. $#pos) {
+
+                # print "$pos[$i]  >  $pos[$j]\n";
+                # print "\n";
                 next
                   unless (defined $pos[$i]
                     and defined $pos[$j]
@@ -283,10 +299,10 @@ for (split(/$DELIM_LEFT/, $buf)) {
     # remove annotation
     $str =~ s/\(.*?\)//g;
 
-    # print "$str\n";        
+    print "\n\n\n$str\n";        
     # dump_kakari($str);
     # print "\n$str\n";        
     
-    # check_length($str);
+    check_length($str);
     check_kakari($str);
 }
