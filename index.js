@@ -41,6 +41,7 @@ rl.on('pause', () => {
                 console.log(v.input);
                 // console.log();
                 check_length(v.input, v.line);
+                check_kakari_subj(v.output, v.line);
                 check_kakari_dep(v.output, v.line);
                 // console.log(v);
             });
@@ -171,17 +172,11 @@ let check_kakari_dep = (obj, line) => {
         }
 
         {
-            let find_kaku = (regexp) => {
-                for (let i = 0; i < list.length; i++) {
-                    if (list[i].match(regexp)) return i;
-                }
-                return -1;
-            };
             let pos = [
-                find_kaku(/(は|が)$/),
-                find_kaku(/を$/),
-                find_kaku(/から$/),
-                find_kaku(/に$/)
+                find_kaku(/(は|が)$/, list),
+                find_kaku(/を$/, list),
+                find_kaku(/から$/, list),
+                find_kaku(/に$/, list)
             ];
             // console.log(pos);
             if (pos.length >= 2) {
@@ -198,6 +193,29 @@ let check_kakari_dep = (obj, line) => {
     }
 };
 
+let check_kakari_subj = (obj, line) => {
+    // console.log(obj);
+    let id = Object.keys(obj);
+    let last_id = id[id.length - 1];
+    let list = [];
+
+    for (let from = 0; from < id.length; from++) {
+        if (obj[id[from]].type === 'A') continue;
+        if (obj[id[from]].type === 'P') continue;
+        list.push(obj[id[from]].phrase);
+    }
+    // console.log(list);
+    if (find_kaku(/(は|が)$/, list) === -1) {
+        error(`misssing subject for ${obj[last_id]}`, line);
+    }
+};
+
+let find_kaku = (regexp, list) => {
+    for (let i = 0; i < list.length; i++) {
+        if (list[i].match(regexp)) return i;
+    }
+    return -1;
+};
 
 let error = (str, line) => {
     console.log(`${line + 1}: **** ${str}`)
