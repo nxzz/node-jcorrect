@@ -3,7 +3,7 @@ const spawn = require('child_process').spawn;
 
 const MAX_PHRASE_LEN = 60 / 2;
 const MAX_SENTENCE_LEN = 180 / 2;
-
+const isWin = /^win/.test(process.platform);
 let ret = [];
 
 exports.run = (text) => {
@@ -49,15 +49,15 @@ exports.run = (text) => {
 let dump_kakari = (str, line) => {
     return new Promise((resolve, reject) => {
         let child = spawn('cabocha');
-        child.stdin.setEncoding('utf-8');
+        child.stdin.setEncoding(isWin ? 'Shift_JIS' : 'utf-8');
 
-        child.stdin.write(str);
+        child.stdin.write(isWin ? iconv.encode(instr, "Shift_JIS") : instr);
         child.stdin.write("\n");
         child.stdin.end();
 
         let out = "";
         child.stdout.on('data', (data) => {
-            out += data.toString();
+            out += isWin ? iconv.decode(data, "Shift_JIS") : data;
         });
 
         child.on('exit', () => {
@@ -95,15 +95,15 @@ let check_kakari = (instr, line) => {
         let warning = [];
 
         let child = spawn('cabocha', ['-f1']);
-        child.stdin.setEncoding('utf-8');
+        child.stdin.setEncoding(isWin ? 'Shift_JIS' : 'utf-8');
 
-        child.stdin.write(instr);
+        child.stdin.write(isWin ? iconv.encode(instr, "Shift_JIS") : instr);
         child.stdin.write("\n");
         child.stdin.end();
 
         let out = "";
         child.stdout.on('data', (data) => {
-            out += data;
+            out += isWin ? iconv.decode(data, "Shift_JIS") : data;
         });
 
         child.on('exit', () => {
