@@ -1,5 +1,6 @@
 "use strict";
 const spawn = require('child_process').spawn;
+const iconv = require('iconv-lite');
 
 const MAX_PHRASE_LEN = 60 / 2;
 const MAX_SENTENCE_LEN = 180 / 2;
