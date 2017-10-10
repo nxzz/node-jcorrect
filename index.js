@@ -50,7 +50,7 @@ exports.run = (text) => {
 let dump_kakari = (str, line) => {
     return new Promise((resolve, reject) => {
         let child = spawn('cabocha');
-        child.stdin.setEncoding(isWin ? 'Shift_JIS' : 'utf-8');
+        child.stdin.setEncoding('utf-8');
 
         child.stdin.write(isWin ? iconv.encode(instr, "Shift_JIS") : instr);
         child.stdin.write("\n");
@@ -96,7 +96,7 @@ let check_kakari = (instr, line) => {
         let warning = [];
 
         let child = spawn('cabocha', ['-f1']);
-        child.stdin.setEncoding(isWin ? 'Shift_JIS' : 'utf-8');
+        child.stdin.setEncoding('utf-8');
 
         child.stdin.write(isWin ? iconv.encode(instr, "Shift_JIS") : instr);
         child.stdin.write("\n");
