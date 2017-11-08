@@ -1,6 +1,12 @@
 ### node-jcorrect
 - 日本語文書校正ツール jcorrect をnode.js向けに移植したもの。
 - "check_kakari_parallel"が移植できていないため、完全移植ではない。
+- 本家がcabochaを利用しているのに対し、knpに変更している。
+- knpはwebapi化したものを利用しているため、ローカルにjumanやknpは不要。
+  - 研究室メンバは https://github.com/hisa-lab/knp-juman-web-api を確認し以下の環境変数を設定すること
+    - `KNP_API_USER`
+    - `KNP_API_PASSWORD`
+  - その他のユーザーでもし利用される方がいましたら、index.jsの96行目付近を改造してください。
 
 ```
 npm i https://github.com/ht14a022/node-jcorrect

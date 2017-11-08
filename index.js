@@ -97,6 +97,10 @@ let check_kakari = (instr, line) => {
             url: `http://lab.nwing.net/knp/tab`,
             form: {
                 text: instr
+            },
+            auth: {
+                user: process.env.KNP_API_USER,
+                password: process.env.KNP_API_PASSWORD
             }
         }, (httperror, response, body) => {
             if (!httperror && response.statusCode == 200) {
