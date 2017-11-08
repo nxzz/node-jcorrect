@@ -1,4 +1,4 @@
-const jc = require('node-jcorrect');
+const jc = require('./index');
 jc.run("技術文書は簡潔であることが重要です。")
     .then((data) => {
         data.forEach((v, i, a) => {

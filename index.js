@@ -1,10 +1,8 @@
 "use strict";
-const spawn = require('child_process').spawn;
-const iconv = require('iconv-lite');
+const request = require('request')
 
 const MAX_PHRASE_LEN = 60 / 2;
 const MAX_SENTENCE_LEN = 180 / 2;
-const isWin = /^win/.test(process.platform);
 let ret = [];
 
 exports.run = (text) => {
@@ -47,33 +45,33 @@ exports.run = (text) => {
     });
 };
 
-let dump_kakari = (str, line) => {
-    return new Promise((resolve, reject) => {
-        let child = spawn('cabocha');
-        child.stdin.setEncoding('utf-8');
+// let dump_kakari = (str, line) => {
+//     return new Promise((resolve, reject) => {
+//         let child = spawn('cabocha');
+//         child.stdin.setEncoding('utf-8');
 
-        child.stdin.write(isWin ? iconv.encode(instr, "Shift_JIS") : instr);
-        child.stdin.write("\n");
-        child.stdin.end();
+//         child.stdin.write(isWin ? iconv.encode(instr, "Shift_JIS") : instr);
+//         child.stdin.write("\n");
+//         child.stdin.end();
 
-        let out = "";
-        child.stdout.on('data', (data) => {
-            out += isWin ? iconv.decode(data, "Shift_JIS") : data;
-        });
+//         let out = "";
+//         child.stdout.on('data', (data) => {
+//             out += isWin ? iconv.decode(data, "Shift_JIS") : data;
+//         });
 
-        child.on('exit', () => {
-            resolve({
-                output: out.replace("\nEOS\n", ""),
-                line: line,
-                input: str
-            });
-        });
+//         child.on('exit', () => {
+//             resolve({
+//                 output: out.replace("\nEOS\n", ""),
+//                 line: line,
+//                 input: str
+//             });
+//         });
 
-        child.stdout.on('error', (err) => {
-            reject(err);
-        });
-    });
-};
+//         child.stdout.on('error', (err) => {
+//             reject(err);
+//         });
+//     });
+// };
 
 let check_length = (vobj) => {
     let str = vobj.input;
@@ -95,57 +93,49 @@ let check_kakari = (instr, line) => {
         let error = [];
         let warning = [];
 
-        let child = spawn('cabocha', ['-f1']);
-        child.stdin.setEncoding('utf-8');
-
-        child.stdin.write(isWin ? iconv.encode(instr, "Shift_JIS") : instr);
-        child.stdin.write("\n");
-        child.stdin.end();
-
-        let out = "";
-        child.stdout.on('data', (data) => {
-            out += isWin ? iconv.decode(data, "Shift_JIS") : data;
-        });
-
-        child.on('exit', () => {
-            let str = out.toString().replace("EOS", "").split(/\n/);
-
-            let output = [];
-            let temp = {};
-            for (let i = 0; i < str.length; i++) {
-                if (str[i].substr(0, 1) === '*') {
-
-                    output.push(temp);
-                    temp = {};
-                    let dumy, from_id, to_id;
-                    [dumy, from_id, to_id] = str[i].split(/\s+/);
-                    temp.to = to_id.substr(0, to_id.length - 1);
-                    temp.type = to_id.substr(to_id.length - 1);
-                    temp.phrase = '';
-                } else {
-                    let word, yomi, orig, type;
-                    [word, yomi, orig, type] = str[i].split(/\s+/);
-
-                    if (type === '記号-句点') continue;
-                    if (type === '記号-読点') continue;
-                    temp.phrase += word;
-                    if (type === '連体詞') warning.push(`check referred word/phrase by ${word}'`);
-                }
+        request.post({
+            url: `http://lab.nwing.net/knp/tab`,
+            form: {
+                text: instr
             }
-            output.push(temp);
-            output.shift();
+        }, (httperror, response, body) => {
+            if (!httperror && response.statusCode == 200) {
+                let str = ("\n" + body).replace(/<.*>/g, "").replace(/\n[#+]\s.*\n/g, "\n").replace(/\n\*\s/g, "\n* dumy ").replace("EOS", "").split(/\n/);
 
-            resolve({
-                output: output,
-                line: line,
-                input: instr,
-                error: error,
-                warning: warning
-            });
-        });
+                let output = [];
+                let temp = {};
+                for (let i = 0; i < str.length; i++) {
+                    if (str[i].substr(0, 1) === '*') {
 
-        child.on('error', (err) => {
-            reject(err);
+                        output.push(temp);
+                        temp = {};
+                        let dumy, from_id, to_id;
+                        [dumy, from_id, to_id] = str[i].split(/\s+/);
+                        temp.to = to_id.substr(0, to_id.length - 1);
+                        temp.type = to_id.substr(to_id.length - 1);
+                        temp.phrase = '';
+                    } else {
+                        let word, yomi, orig, type;
+                        [word, yomi, orig, type] = str[i].split(/\s+/);
+
+                        if (type === '記号-句点') continue;
+                        if (type === '記号-読点') continue;
+                        temp.phrase += word;
+                        if (type === '連体詞') warning.push(`check referred word/phrase by ${word}'`);
+                    }
+                }
+                output.push(temp);
+                output.shift();
+                resolve({
+                    output: output,
+                    line: line,
+                    input: instr,
+                    error: error,
+                    warning: warning
+                });
+            } else {
+                reject('error: ' + response.statusCode + body);
+            }
         });
     });
 };
